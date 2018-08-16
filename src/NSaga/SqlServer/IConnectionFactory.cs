@@ -16,6 +16,12 @@ namespace NSaga
         /// </summary>
         /// <returns></returns>
         IDbConnection CreateOpenConnection();
+
+        /// <summary>
+        /// Specifies if the connection is to a MySql database.
+        /// </summary>
+        /// <returns></returns>
+        bool ConnectionIsToMySql();
     }
 
     /// <summary>
@@ -46,6 +52,15 @@ namespace NSaga
             connection.Open();
 
             return connection;
+        }
+
+        /// <summary>
+        /// Specifies if the connection is to a MySql database.
+        /// </summary>
+        /// <returns>If the connection is to a MySql database.</returns>
+        public bool ConnectionIsToMySql()
+        {
+            return false;
         }
 
 

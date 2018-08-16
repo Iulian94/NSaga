@@ -22,9 +22,13 @@ namespace NSaga
         internal const string SagaDataTableName = "NSaga.Sagas";
         internal const string HeadersTableName = "NSaga.Headers";
 
+        internal const string MySqlSagaDataTableName = "NSaga_Sagas";
+        internal const string MySqlHeadersTableName = "NSaga_Headers";
+
         private readonly ISagaFactory sagaFactory;
         private readonly IMessageSerialiser messageSerialiser;
         private readonly IConnectionFactory connectionFactory;
+        private readonly IQueryWrapper queryWrapper;
 
         /// <summary>
         /// Initiates an instance of <see cref="SqlSagaRepository"/> with a connection string name.
@@ -42,6 +46,15 @@ namespace NSaga
             this.messageSerialiser = messageSerialiser;
             this.sagaFactory = sagaFactory;
             this.connectionFactory = connectionFactory;
+
+            if (connectionFactory.ConnectionIsToMySql())
+            {
+                this.queryWrapper = new MySqlQueryWrapper();
+            }
+            else
+            {
+                this.queryWrapper = new SqlQueryWrapper();
+            }
         }
 
 
@@ -58,11 +71,11 @@ namespace NSaga
         {
             Guard.ArgumentIsNotNull(correlationId, nameof(correlationId));
 
-            using(var connection = connectionFactory.CreateOpenConnection())
+            using (var connection = connectionFactory.CreateOpenConnection())
             using (var database = new Database(connection))
             {
                 var sql = Sql.Builder.Where("correlationId = @0", correlationId);
-                var persistedData = database.SingleOrDefault<SagaData>(sql);
+                var persistedData = queryWrapper.SingleOrDefaultData(database, sql);
 
                 if (persistedData == null)
                 {
@@ -74,7 +87,7 @@ namespace NSaga
                 var sagaData = messageSerialiser.Deserialise(persistedData.BlobData, sagaDataType);
 
                 var headersSql = Sql.Builder.Where("correlationId = @0", correlationId);
-                var headersPersisted = database.Query<SagaHeaders>(headersSql);
+                var headersPersisted = queryWrapper.QueryHeaders(database, headersSql);
                 var headers = headersPersisted.ToDictionary(k => k.Key, v => v.Value);
 
                 sagaInstance.CorrelationId = correlationId;
@@ -115,16 +128,16 @@ namespace NSaga
             {
                 try
                 {
-                    int updatedRaws = database.Update(dataModel);
+                    int updatedRaws = queryWrapper.Update(database, dataModel);
 
                     if (updatedRaws == 0)
                     {
                         // no records were updated - this means no records already exist - need to insert new record
-                        database.Insert(dataModel);
+                        queryWrapper.Insert(database, dataModel);
                     }
 
                     // delete all existing headers
-                    database.Delete<SagaHeaders>("WHERE CorrelationId=@0", correlationId);
+                    queryWrapper.DeleteHeader(database, "WHERE CorrelationId=@0", correlationId);
 
                     // and insert updated ones
                     foreach (var header in sagaHeaders)
@@ -136,7 +149,7 @@ namespace NSaga
                             Value = header.Value,
                         };
 
-                        database.Insert(storedHeader);
+                        queryWrapper.Insert(database, storedHeader);
                     }
                     transaction.Complete();
                 }
@@ -176,8 +189,8 @@ namespace NSaga
             {
                 try
                 {
-                    database.Delete<SagaHeaders>("WHERE CorrelationId=@0", correlationId);
-                    database.Delete<SagaData>("WHERE CorrelationId=@0", correlationId);
+                    queryWrapper.DeleteHeader(database, "WHERE CorrelationId=@0", correlationId);
+                    queryWrapper.DeleteData(database, "WHERE CorrelationId=@0", correlationId);
                     transaction.Complete();
                 }
                 catch (Exception)
@@ -191,21 +204,4 @@ namespace NSaga
 
 
 
-    [TableName(SqlSagaRepository.SagaDataTableName)]
-    [PrimaryKey("CorrelationId", AutoIncrement = false)]
-    internal class SagaData
-    {
-        public Guid CorrelationId { get; set; }
-        public String BlobData { get; set; }
-    }
-
-
-    [TableName(SqlSagaRepository.HeadersTableName)]
-    [PrimaryKey("CorrelationId", AutoIncrement = false)]
-    internal class SagaHeaders
-    {
-        public Guid CorrelationId { get; set; }
-        public String Key { get; set; }
-        public String Value { get; set; }
-    }
 }

@@ -77,8 +77,15 @@
     <Compile Include="NSagaReflection.cs" />
     <Compile Include="SagaMediator.cs" />
     <Compile Include="Pipeline\SagaMetadata.cs" />
+    <Compile Include="SqlServer\Common\BaseQueryWrapper.cs" />
+    <Compile Include="SqlServer\Common\BaseSagaData.cs" />
+    <Compile Include="SqlServer\Common\IQueryWrapper.cs" />
     <Compile Include="SqlServer\IConnectionFactory.cs" />
+    <Compile Include="SqlServer\MySql\MySqlQueryWrapper.cs" />
+    <Compile Include="SqlServer\MySql\MySqlSagaData.cs" />
     <Compile Include="SqlServer\PetaPoco.cs" />
+    <Compile Include="SqlServer\SqlQueryWrapper.cs" />
+    <Compile Include="SqlServer\SqlSagaData.cs" />
     <Compile Include="SqlServer\SqlSagaRepository.cs" />
     <Compile Include="SqlServer\SqlServerWireup.cs" />
   </ItemGroup>
